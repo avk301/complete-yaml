@@ -1,0 +1,14 @@
+steps:
+#- task: DotNetCoreCLI@2
+#  displayName: 'Install .NET SDK'
+#  inputs:
+#    command: 'use'
+#    packageSource: 'nuget.org'
+#    version: '$(dotnetSdkVersion)'
+
+- task: DotNetCoreCLI@2
+  displayName: 'Run Unit Tests'
+  inputs:
+    command: 'test'
+    projects: '**/*Tests/*.csproj'
+    arguments: '--configuration $(buildConfiguration) --collect:"XPlat Code Coverage"'

@@ -1,0 +1,27 @@
+parameters:
+- name: stageName
+  type: string
+  default: 'Deploy'
+- name: environmentName
+  type: string
+  default: 'dev'
+- name: dependsOn
+  type: object
+  default: []
+- name: deploymentSteps
+  type: stepList
+  default: []
+
+stages:  # ✅ Un-commented "stages" to define the deployment stage properly
+- stage: ${{ parameters.stageName }}
+  displayName: 'Deploy to ${{ parameters.environmentName }}'
+  dependsOn: ${{ parameters.dependsOn }}
+  jobs:
+  - deployment: Deploy
+    displayName: 'Deploy to ${{ parameters.environmentName }}'
+    environment: ${{ parameters.environmentName }}
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - ${{ parameters.deploymentSteps }}

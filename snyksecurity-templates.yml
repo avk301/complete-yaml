@@ -1,0 +1,40 @@
+# snyk-integration-template.yml
+parameters:
+- name: snykServiceName
+  type: string
+  default: 'YourSnykServiceConnection' # Replace with your Snyk service connection name
+- name: snykOrganization
+  type: string
+  default: 'YourSnykOrgId' # Replace with your Snyk organization ID
+- name: testCategory
+  type: string
+  default: 'all' # Options: all, code, open-source, iac
+- name: failOnSeverity
+  type: string
+  default: 'high' # Options: low, medium, high, critical
+- name: monitorOnBuild
+  type: boolean
+  default: false # Set to true to monitor project on build
+- name: monitorProjectName
+  type: string
+  default: '' # Required if monitorOnBuild is true
+- name: additionalArguments
+  type: string
+  default: '' # Add any additional snyk arguments
+
+steps:
+- task: snyksecurityscan@1
+  displayName: 'Run Snyk Security Scan'
+  inputs:
+    serviceConnectionEndpoint: ${{ parameters.snykServiceName }}
+    organization: ${{ parameters.snykOrganization }}
+    testCategory: ${{ parameters.testCategory }}
+    failOnSeverity: ${{ parameters.failOnSeverity }}
+    monitorOnBuild: ${{ parameters.monitorOnBuild }}
+    monitorProjectName: ${{ parameters.monitorProjectName }}
+    sarifOutput: true
+    # Optionally specify target file or directory
+    # targetFile: 'path/to/your/application'
+    # targetDir: 'path/to/your/project'
+    # Additional Snyk arguments
+    args: ${{ parameters.additionalArguments }}

@@ -1,0 +1,64 @@
+# blue-green-deployment-template.yml
+parameters:
+- name: azureSubscription
+  type: string
+  default: 'Your Azure Subscription' # Replace with your service connection
+- name: resourceGroupName
+  type: string
+  default: 'your-resource-group'
+- name: location
+  type: string
+  default: 'eastus'
+- name: baseName
+  type: string
+  default: 'bluegreenapp'
+- name: slotName
+  type: string
+  default: 'staging' # Name of the staging slot
+- name: initialDeploymentSlot
+  type: string
+  default: 'green' # Options: blue, green
+- name: artifactName
+  type: string
+  default: 'drop'
+- name: packagePath
+  type: string
+  default: '**/*.zip' # Adjust path to your package
+
+variables:
+  blueWebAppName: '$(baseName)-blue'
+  greenWebAppName: '$(baseName)-green'
+  deploymentSlot: $[variables['initialDeploymentSlot'] == 'green' ? variables.greenWebAppName : variables.blueWebAppName]
+  sourceWebAppName: $[variables['initialDeploymentSlot'] == 'green' ? variables.blueWebAppName : variables.greenWebAppName]
+
+steps:
+- download: current
+  artifactName: ${{ parameters.artifactName }}
+  displayName: 'Download Artifact'
+  path: '$(System.DefaultWorkingDirectory)/drop'
+
+- task: AzureWebApp@1
+  displayName: 'Deploy to ${{ parameters.initialDeploymentSlot }} Web App Slot'
+  inputs:
+    azureSubscription: ${{ parameters.azureSubscription }}
+    appName: '$(deploymentSlot)'
+    slotName: ${{ parameters.slotName }}
+    package: '$(System.DefaultWorkingDirectory)/drop/${{ parameters.packagePath }}'
+
+- task: AzureWebAppSlot@1
+  displayName: 'Swap Slots'
+  inputs:
+    azureSubscription: ${{ parameters.azureSubscription }}
+    appName: '$(sourceWebAppName)' # The app currently in production
+    slotSwapType: 'WithPreview' # Or 'Standard' for immediate swap
+    targetSlot: ${{ parameters.slotName }} # The staging slot to swap with
+
+- script: echo "Running post-swap validation..."
+  displayName: 'Validate Deployment'
+  # Add steps to validate the newly deployed version in production
+  # This could involve running integration tests, smoke tests, etc.
+
+- script: echo "Cleaning up the old slot (optional)..."
+  displayName: 'Cleanup'
+  # Optional: Add steps to cleanup resources in the slot that was just moved to staging
+  # For example, scaling down or stopping the old production slot

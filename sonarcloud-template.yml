@@ -1,0 +1,36 @@
+# sonarcloud-template.yml
+parameters:
+- name: sonarCloudServiceName
+  type: string
+  default: 'YourSonarCloudServiceConnection' # Replace with your SonarCloud service connection
+- name: sonarCloudOrganization
+  type: string
+  default: 'YourSonarCloudOrg' # Replace with your SonarCloud organization
+- name: sonarCloudProjectKey
+  type: string
+  default: 'YourSonarCloudProjectKey' # Replace with your SonarCloud project key
+- name: sonarCloudProjectName
+  type: string
+  default: 'YourSonarCloudProjectName' # Replace with your SonarCloud project name
+- name: sourceCodeDirectory
+  type: string
+  default: '$(System.DefaultWorkingDirectory)' # Path to the source code directory
+- name: sonarCloudScannerMode
+  type: string
+  default: 'dotnet' # Additional SonarQube parameters
+- name: extraSonarParameters
+  type: string
+  default: '' # Additional SonarQube parameters
+
+steps:
+- task: SonarCloudPrepare@3
+  displayName: 'Prepare analysis on SonarCloud'
+  inputs:
+    SonarCloud: ${{ parameters.sonarCloudServiceName }}
+    organization: ${{ parameters.sonarCloudOrganization }}
+    projectKey: ${{ parameters.sonarCloudProjectKey }}
+    projectName: ${{ parameters.sonarCloudProjectName }}
+    #scannerMode: ${{ parameters.sonarCloudScannerMode }}
+    #extraProperties: ${{ parameters.extraSonarParameters }}
+
+

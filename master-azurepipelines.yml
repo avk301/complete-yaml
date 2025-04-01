@@ -1,0 +1,161 @@
+trigger:
+  - none
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  buildConfiguration: Release
+  wwwrootDir: Tailspin.SpaceGame.Web/wwwroot
+  dotnetSdkVersion: 6.x
+
+stages:
+- stage: Build
+  displayName: 'Build Stage'
+  jobs:
+  - job: BuildJob
+    displayName: 'Build Job'
+    steps:
+    - task: UseDotNet@2
+      displayName: Use .NET SDK $(dotnetSdkVersion)
+      inputs:
+        version: $(dotnetSdkVersion)
+
+    - task: Npm@1
+      displayName: Run npm install
+      inputs:
+        verbose: false
+
+    - script: ./node_modules/.bin/node-sass $(wwwrootDir) --output $(wwwrootDir)
+      displayName: Compile Sass assets
+
+    - task: Gulp@1
+      displayName: Run gulp tasks
+
+    - script: echo "$(Build.DefinitionName), $(Build.BuildId), $(Build.BuildNumber)" > buildinfo.txt
+      displayName: Write build info
+      workingDirectory: $(wwwrootDir)
+
+    - task: DotNetCoreCLI@2
+      displayName: Restore project dependencies
+      inputs:
+        command: restore
+        projects: '**/*.csproj'
+    
+  
+    #- task: SnykSecurityScan@1
+    #  inputs:
+    #    serviceConnectionEndpoint: 'snyk-scan'
+    #    testType: 'code'
+    #    failOnIssues: true
+    #    projectName: 'spacegame-web/spacegame-web1'
+    #    organization: 'avk9848'
+    
+    - template: templates/snyksecurity-templates.yml
+      parameters:
+        snykServiceName: 'snyk-scan' # Replace with your actual service connection name
+        snykOrganization: 'avk9848' # Replace with your actual organization ID
+        testCategory: 'code' # Run Snyk Code analysis
+        failOnSeverity: 'high'
+        #monitorOnBuild: true
+        monitorProjectName: 'spacegame-web' # Replace with your desired project name in Snyk
+        #additionalArguments: '--severity-threshold=medium' # Example of adding extra arguments
+
+    
+    - template: templates/sonarcloud-template.yml
+      parameters:
+        sonarCloudServiceName: 'sonarcloud' # Replace with your Service connection
+        sonarCloudOrganization: 'sonar-scanner1' # Replace with your organization
+        sonarCloudProjectKey: 'avk9848_spacegame-web1' # Replace with your project key
+        sonarCloudProjectName: 'spacegame-web1' # Replace with your project name
+        #sonarCloudScannerMode: 'dotnet' # Replace with your project type
+        #extraSonarParameters: 'sonar.exclusions=**/node_modules/**,sonar.javascript.lcov.reportPaths=coverage/lcov.info' # Example extra parameters
+    
+    #- template: templates/build-templates.yml
+      #parameters:
+      #  buildConfiguration: Debug
+    - template: templates/build-templates.yml
+      parameters:
+        buildConfiguration: Release
+    
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish Artifact'
+      inputs:
+        PathtoPublish: $(Build.ArtifactStagingDirectory)
+        ArtifactName: drop
+        publishLocation: Container
+
+- stage: Test
+  displayName: 'Test Stage'
+  dependsOn: Build
+  jobs:
+  - job: TestJob
+    displayName: 'Test Job'
+    steps:
+    - template: templates/test-templates.yml
+
+#- stage: Sonarcheck
+#  displayName: 'Sonar Stage'
+#  jobs:
+#  - job: SonarcloudJob
+#    displayName: 'Sonar Job'
+#    steps:
+#    - template: templates/sonarcloud-template.yml
+#      parameters:
+#        sonarCloudServiceName: 'sonarcloud' # Replace with your Service connection
+#       sonarCloudOrganization: 'sonar-scanner1' # Replace with your organization
+#        sonarCloudProjectKey: 'avk9848_spacegame-web1' # Replace with your project key
+#       sonarCloudProjectName: 'spacegame-web1' # Replace with your project name
+#        #sonarCloudScannerMode: 'dotnet' # Replace with your project type
+#        #extraSonarParameters: 'sonar.exclusions=**/node_modules/**,sonar.javascript.lcov.reportPaths=coverage/lcov.info' # Example extra parameters
+
+
+
+    #- task: SonarCloudAnalyze@3
+    #  inputs:
+    #  jdkversion: 'JAVA_HOME_17_X64'
+
+    #- task: SonarCloudPublish@3
+      #inputs:
+      #  pollingTimeoutSec: '300'
+
+
+      
+
+
+# ✅ Use a stage template instead of defining an empty stage
+- template: templates/deploy-templates1.yml
+  parameters:
+    stageName: Deploy
+    environmentName: dev
+    dependsOn: Test
+    deploymentSteps:
+      - script: echo "Deploying to Dev environment..."
+      - task: AzureWebApp@1
+        inputs:
+          azureSubscription: 'azuretoado'
+          appType: 'webApp'
+          appName: 'spacegame-web'
+          deployToSlotOrASE: true
+          resourceGroupName: 'DefaultResourceGroup-WUS'
+          slotName: 'production'
+          package: '$(Build.ArtifactStagingDirectory)'
+          deploymentMethod: 'runonce'
+
+#- stage: DeployBlueGreen
+#  displayName: 'Blue/Green Deployment'
+#  dependsOn: Build
+#  jobs:
+#  - deployment: BlueGreenDeploymentJob
+#    displayName: 'Perform Blue/Green Deployment'
+#    environment: 'production' # Define your production environment
+#    steps:
+#    - template: templates/BlueGreendeployment-templates.yml
+#      parameters:
+#        azureSubscription: 'Your Azure Subscription' # Replace with your actual service connection
+#        resourceGroupName: 'your-resource-group'
+#        location: 'eastus'
+#        baseName: 'my-app'
+#       initialDeploymentSlot: 'green' # Or 'blue' depending on your setup
+#        artifactName: 'drop'
+#        packagePath: '**/*.zip'
